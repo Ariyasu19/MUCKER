@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MUCKER - Night Market Festival</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Noto+Sans+JP:wght@900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: #020617;
+            margin: 0;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .title-font {
+            font-family: 'Bungee', cursive;
+        }
+
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
+
+        .menu-overlay {
+            background: linear-gradient(to bottom, rgba(15, 23, 42, 0.95), rgba(45, 10, 10, 0.95));
+            backdrop-filter: blur(8px);
+        }
+
+        .neon-text {
+            text-shadow: 0 0 10px #facc15, 0 0 30px #fb923c, 0 0 50px #ef4444;
+        }
+
+        .power-bar-container {
+            width: 20px;
+            height: 180px;
+            background: rgba(15, 25, 42, 0.8);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column-reverse;
+            overflow: hidden;
+            border: 2px solid #fbbf24;
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+        }
+
+        .power-bar-fill {
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #7f1d1d, #ef4444, #fbbf24, #ffffff);
+            box-shadow: 0 0 10px #ef4444;
+            transition: height 0.05s linear;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(-2deg); }
+            50% { transform: translateY(-15px) rotate(2deg); }
+        }
+
+        .menu-lantern {
+            position: absolute;
+            width: 45px;
+            height: 60px;
+            background: #dc2626;
+            border-radius: 8px;
+            border: 2px solid #facc15;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #facc15;
+            font-size: 1.5rem;
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+            animation: float 4s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="main-menu" class="fixed inset-0 z-50 flex flex-col items-center justify-center menu-overlay overflow-hidden">
+        <div class="menu-lantern left-[15%] top-[20%]">祭</div>
+        <div class="menu-lantern right-[15%] top-[15%]" style="animation-delay: -1s;">福</div>
+        <div class="menu-lantern left-[20%] bottom-[20%]" style="animation-delay: -2.5s;">運</div>
+        <div class="menu-lantern right-[10%] bottom-[25%]" style="animation-delay: -1.5s;">吉</div>
+
+        <div class="relative z-10 text-center scale-90">
+            <h1 class="text-7xl md:text-8xl text-yellow-400 title-font neon-text tracking-tighter">MUCKER</h1>
+            <p class="text-white text-lg font-black tracking-[0.4em] mt-1 opacity-80 uppercase">RINGTOSS CHALLENGE</p>
+            <div class="h-1 w-48 bg-yellow-500 mx-auto mt-3 rounded-full shadow-[0_0_10px_#facc15]"></div>
+        </div>
+        
+        <div class="mt-12 space-y-3 flex flex-col w-64 z-10">
+            <button onclick="startGame()" class="group relative bg-red-600 text-white font-black py-4 rounded-xl text-2xl transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(220,38,38,0.4)] border-b-4 border-red-800">
+                <span class="relative z-10">START GAME</span>
+                <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-xl transition-opacity"></div>
+            </button>
+            <button onclick="toggleHowTo()" class="bg-white/10 hover:bg-white/20 text-white font-bold py-2 rounded-lg border border-white/20 transition-all text-sm">
+                HOW TO PLAY
+            </button>
+            <button onclick="window.close()" class="bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold py-2 rounded-lg border border-slate-700 transition-all text-xs uppercase tracking-widest">
+                QUIT GAME
+            </button>
+        </div>
+
+        <div id="how-to-panel" class="hidden mt-6 text-white/90 text-center max-w-xs p-4 bg-black/40 backdrop-blur-md rounded-xl border-2 border-yellow-500/30 z-10 text-sm">
+            <p class="mb-1">Hold <span class="text-yellow-400 font-bold">PRESS</span> to charge power.</p>
+            <p>The <span class="text-cyan-400 font-bold">ARC</span> shows exactly where you land.</p>
+            <p>Clear all bottles to <span class="text-green-400 font-bold">LEVEL UP</span>!</p>
+        </div>
+    </div>
+
+    <div id="game-ui" class="hidden fixed inset-0 pointer-events-none p-4 z-40">
+        <div class="flex justify-between items-start pointer-events-auto">
+            <div class="flex gap-3">
+                <button onclick="quitGame()" class="bg-red-900/80 hover:bg-red-600 text-white p-3 rounded-xl border-2 border-red-500 shadow-xl backdrop-blur-md transition-colors pointer-events-auto group">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                </button>
+                <div class="bg-black/70 p-3 rounded-xl border-2 border-yellow-500 shadow-xl backdrop-blur-md">
+                    <p class="text-yellow-400 text-[8px] font-black uppercase tracking-widest">Winnings</p>
+                    <p id="score-val" class="text-white text-3xl title-font">0</p>
+                </div>
+                <div class="bg-black/70 p-3 rounded-xl border-2 border-cyan-500 shadow-xl backdrop-blur-md">
+                    <p class="text-cyan-400 text-[8px] font-black uppercase tracking-widest">Level</p>
+                    <p id="level-val" class="text-white text-3xl title-font">1</p>
+                </div>
+            </div>
+            <div class="bg-black/70 p-3 rounded-xl border-2 border-red-500 shadow-xl backdrop-blur-md">
+                <p class="text-red-400 text-[8px] font-black uppercase tracking-widest">Rings</p>
+                <p id="rings-val" class="text-white text-3xl title-font text-right">10</p>
+            </div>
+        </div>
+
+        <div class="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
+            <div class="power-bar-container">
+                <div id="power-fill" class="power-bar-fill"></div>
+            </div>
+            <p class="text-yellow-400 text-[9px] font-black uppercase tracking-widest bg-black/80 px-2 py-0.5 rounded-full border border-yellow-500/30">Force</p>
+        </div>
+
+        <div id="game-over-modal" class="hidden fixed inset-0 flex items-center justify-center bg-black/95 pointer-events-auto z-50">
+            <div class="text-center p-8 bg-indigo-950/20 rounded-2xl border-4 border-yellow-500 shadow-[0_0_40px_rgba(250,204,21,0.2)]">
+                <h2 class="text-5xl text-white title-font mb-2 neon-text">GAME OVER</h2>
+                <p class="text-yellow-400 text-xl mb-8">Prize Tickets: <span id="final-score" class="text-white">0</span></p>
+                <div class="flex flex-col gap-3">
+                    <button onclick="resetGame()" class="bg-red-600 text-white font-black py-4 px-12 rounded-xl text-2xl hover:bg-red-500 transition-all border-b-4 border-red-800">TRY AGAIN</button>
+                    <button onclick="quitGame()" class="text-slate-400 hover:text-white transition-colors uppercase tracking-widest font-bold text-sm">Back to Menu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score-val');
+        const ringsEl = document.getElementById('rings-val');
+        const levelEl = document.getElementById('level-val');
+        const powerFill = document.getElementById('power-fill');
+        const gameOverModal = document.getElementById('game-over-modal');
+
+        let gameState = 'menu';
+        let score = 0;
+        let rings = 10;
+        let level = 1;
+        let power = 0;
+        let powerDir = 1; 
+        
+        const ringFlightSpeed = 0.025; 
+        let isCharging = false;
+        let pegs = [];
+        let activeRings = [];
+        let animationFrame;
+
+        const MAX_THROW_DEPTH = 0.75;
+
+        class Bottle {
+            constructor(shelfIndex, lvl) {
+                this.shelfIndex = shelfIndex;
+                this.level = lvl;
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * (canvas.width * 0.6) + (canvas.width * 0.2);
+                const shelfHeights = [0.35, 0.48, 0.61];
+                this.y = canvas.height * shelfHeights[this.shelfIndex];
+                
+                const baseSpeed = 0.35 + (this.level * 0.2);
+                this.speed = (Math.random() * 0.4 + baseSpeed) * (Math.random() > 0.5 ? 1 : -1);
+                
+                const colors = ['#166534', '#713f12', '#1e40af', '#991b1b'];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+                this.isHit = false;
+            }
+            update() {
+                if (this.isHit) return;
+                this.x += this.speed;
+                if (this.x < canvas.width * 0.15 || this.x > canvas.width * 0.85) this.speed *= -1;
+            }
+            draw() {
+                if (this.isHit) return;
+                ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.ellipse(this.x, this.y + 10, 15, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.roundRect(this.x - 10, this.y - 45, 20, 55, 3);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.roundRect(this.x - 4, this.y - 65, 8, 25, 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.x - 5, this.y - 40);
+                ctx.lineTo(this.x - 5, this.y - 10);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class Ring {
+            constructor(pwr) {
+                this.x = canvas.width / 2;
+                this.y = canvas.height - 120;
+                this.startX = this.x;
+                this.startY = this.y;
+                this.targetY = canvas.height * (0.8 - ((pwr / 100) * MAX_THROW_DEPTH));
+                this.scale = 1.0; // Reduced initial scale
+                this.progress = 0;
+                this.speed = ringFlightSpeed;
+                this.alive = true;
+                this.landed = false;
+            }
+            update() {
+                if (this.landed) return;
+                this.progress += this.speed;
+                const currentTargetY = this.startY + (this.targetY - this.startY) * this.progress;
+                this.y = currentTargetY - Math.sin(this.progress * Math.PI) * 350;
+                this.scale = 1.0 - (this.progress * 0.75); // Scales down as it flies
+
+                if (this.progress >= 1) {
+                    this.landed = true;
+                    this.y = this.targetY;
+                    this.checkHit();
+                }
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.scale, this.scale * 0.4);
+                ctx.lineWidth = 12; // Thinner line for smaller ring
+                ctx.strokeStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.arc(0, 0, 35, 0, Math.PI * 2); // Reduced radius
+                ctx.stroke();
+                ctx.restore();
+            }
+            checkHit() {
+                pegs.forEach(peg => {
+                    if (peg.isHit) return;
+                    const dx = this.x - peg.x;
+                    const dy = this.y - peg.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 25) { // Adjusted hit box for smaller ring
+                        score += 500;
+                        scoreEl.innerText = score;
+                        peg.isHit = true;
+                        checkLevelComplete();
+                    }
+                });
+                setTimeout(() => { this.alive = false; }, 400);
+            }
+        }
+
+        function checkLevelComplete() {
+            if (pegs.every(p => p.isHit)) {
+                level++;
+                levelEl.innerText = level;
+                rings += 5; 
+                ringsEl.innerText = rings;
+                initLevel();
+            }
+        }
+
+        function drawStall() {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const shelfHeights = [0.35, 0.48, 0.61];
+            shelfHeights.forEach(h => {
+                ctx.fillStyle = '#451a03';
+                ctx.fillRect(canvas.width * 0.1, canvas.height * h + 10, canvas.width * 0.8, 20);
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(canvas.width * 0.1, canvas.height * h + 30, canvas.width * 0.8, 5);
+            });
+            const stripeWidth = 60;
+            for(let x= -30; x < canvas.width + stripeWidth; x += stripeWidth) {
+                ctx.fillStyle = (Math.floor((x+30)/stripeWidth) % 2 === 0) ? '#dc2626' : '#ffffff';
+                ctx.beginPath();
+                ctx.moveTo(x, 0); ctx.lineTo(x + stripeWidth, 0);
+                ctx.lineTo(x + stripeWidth - 15, 80); ctx.lineTo(x - 15, 80);
+                ctx.fill();
+            }
+            const counterTop = canvas.height * 0.8;
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(0, counterTop, canvas.width, canvas.height - counterTop);
+        }
+
+        function drawTrajectoryAndHold() {
+            if (!isCharging) return;
+            
+            // Draw smaller ring in hand
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height - 120);
+            ctx.scale(1.0, 1.0 * 0.4);
+            ctx.lineWidth = 12;
+            ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 35, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+
+            const targetY = canvas.height * (0.8 - ((power/100) * MAX_THROW_DEPTH));
+            ctx.save();
+            ctx.strokeStyle = 'rgba(34, 211, 238, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.ellipse(canvas.width/2, targetY, 12, 4, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function initLevel() {
+            pegs = [
+                new Bottle(0, level), 
+                new Bottle(1, level), new Bottle(1, level), 
+                new Bottle(2, level), new Bottle(2, level)
+            ];
+        }
+
+        function startGame() {
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('game-ui').classList.remove('hidden');
+            gameState = 'playing';
+            level = 1;
+            levelEl.innerText = level;
+            resetGameParams();
+            initLevel();
+            if(!animationFrame) animate();
+        }
+
+        function quitGame() {
+            gameState = 'menu';
+            document.getElementById('main-menu').classList.remove('hidden');
+            document.getElementById('game-ui').classList.add('hidden');
+            gameOverModal.classList.add('hidden');
+        }
+
+        function resetGameParams() {
+            score = 0;
+            rings = 10;
+            scoreEl.innerText = '0';
+            ringsEl.innerText = '10';
+            activeRings = [];
+            isCharging = false;
+            power = 0;
+            powerFill.style.height = '0%';
+            gameOverModal.classList.add('hidden');
+        }
+
+        function resetGame() {
+            level = 1;
+            levelEl.innerText = level;
+            resetGameParams();
+            initLevel(); 
+            gameState = 'playing';
+        }
+
+        function checkGameOver() {
+            if (rings <= 0 && activeRings.length === 0 && gameState === 'playing') {
+                gameState = 'over';
+                document.getElementById('final-score').innerText = score;
+                gameOverModal.classList.remove('hidden');
+            }
+        }
+
+        function animate() {
+            if (gameState === 'playing' || gameState === 'over') {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawStall();
+                pegs.forEach(p => { p.update(); p.draw(); });
+                activeRings = activeRings.filter(r => r.alive);
+                activeRings.forEach(r => { r.update(); r.draw(); });
+
+                if (isCharging) {
+                    const currentPowerSpeed = 0.5 + (level * 0.2);
+                    power += powerDir * currentPowerSpeed;
+                    
+                    if (power >= 100) { power = 100; powerDir = -1; }
+                    else if (power <= 0) { power = 0; powerDir = 1; }
+                    powerFill.style.height = power + '%';
+                    drawTrajectoryAndHold();
+                }
+                checkGameOver();
+            }
+            animationFrame = requestAnimationFrame(animate);
+        }
+
+        const handleStart = (e) => {
+            if (gameState === 'playing' && rings > 0 && !e.target.closest('button')) {
+                isCharging = true;
+                powerDir = 1;
+            }
+        };
+
+        const handleEnd = () => {
+            if (isCharging) {
+                isCharging = false;
+                activeRings.push(new Ring(power));
+                rings--;
+                ringsEl.innerText = rings;
+                power = 0;
+                powerFill.style.height = '0%';
+            }
+        };
+
+        window.addEventListener('mousedown', handleStart);
+        window.addEventListener('mouseup', handleEnd);
+        window.addEventListener('touchstart', (e) => { if(!e.target.closest('button')){e.preventDefault(); handleStart(e);} }, {passive: false});
+        window.addEventListener('touchend', (e) => { if(!e.target.closest('button')){e.preventDefault(); handleEnd();} }, {passive: false});
+        window.addEventListener('resize', resize);
+        resize();
+    </script>
+</body>
+</html>
