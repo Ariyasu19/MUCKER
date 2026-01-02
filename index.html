@@ -61,6 +61,7 @@
 
         .neon-text-yellow { text-shadow: 0 0 10px var(--neon-yellow), 0 0 20px #fb923c; }
         .neon-text-red { text-shadow: 0 0 10px var(--neon-red), 0 0 20px #7f1d1d; }
+        .neon-text-cyan { text-shadow: 0 0 8px var(--neon-cyan); }
 
         /* Power Bar Styling */
         .power-bar-container {
@@ -177,6 +178,12 @@
             <p>2. Watch the <span class="text-white font-bold">CYAN PULSE</span> to aim your landing.</p>
             <p>3. Clear the shelf to advance levels.</p>
         </div>
+
+        <!-- USER SIGNATURE IN BOTTOM RIGHT -->
+        <div class="fixed bottom-6 right-8 text-right z-50 pointer-events-none">
+            <p class="text-[10px] tracking-[0.4em] text-white/30 uppercase mb-1">Architect</p>
+            <p class="text-cyan-400 text-xl font-bold tracking-widest neon-text-cyan">包傑禮</p>
+        </div>
     </div>
 
     <div id="game-ui" class="hidden fixed inset-0 pointer-events-none p-6 z-40">
@@ -207,6 +214,11 @@
             <div class="bg-cyan-500/10 border border-cyan-500/30 p-2 rounded-lg">
                 <p class="text-cyan-400 text-[8px] font-black uppercase vertical-lr">THRUST</p>
             </div>
+        </div>
+
+        <!-- Game Signature Overlay -->
+        <div class="fixed bottom-6 right-8 text-right opacity-40">
+            <p class="text-cyan-400 text-xs font-bold tracking-widest">包傑禮</p>
         </div>
 
         <!-- Game Over UI -->
@@ -242,7 +254,7 @@
         let powerDir = 1; 
         
         const ringFlightSpeed = 0.025; 
-        const powerChargeSpeed = 0.8; // ADJUSTED: Slower thrust speed for better precision
+        const powerChargeSpeed = 0.8; 
         let isCharging = false;
         let pegs = [];
         let activeRings = [];
@@ -429,13 +441,11 @@
         }
 
         function drawChargingRing() {
-            // NEW: Make the ring visible at the start position BEFORE and DURING release
             ctx.save();
             ctx.translate(canvas.width / 2, canvas.height - 120);
             ctx.scale(1.3, 1.3 * 0.4);
             ctx.lineWidth = 12;
             
-            // Pulse effect if charging
             const alpha = isCharging ? 0.8 : 0.4;
             ctx.strokeStyle = `rgba(34, 211, 238, ${alpha})`;
             ctx.shadowBlur = isCharging ? 25 : 10;
@@ -533,11 +543,11 @@
                 particles.forEach(p => { p.update(); p.draw(); });
 
                 if (gameState === 'playing' && rings > 0) {
-                    drawChargingRing(); // NEW: Draws the ring at hand
+                    drawChargingRing();
                 }
 
                 if (isCharging) {
-                    power += powerDir * powerChargeSpeed; // ADJUSTED: Using slower speed constant
+                    power += powerDir * powerChargeSpeed;
                     if (power >= 100 || power <= 0) powerDir *= -1;
                     powerFill.style.height = power + '%';
                     drawTrajectoryAndHold();
